@@ -41,7 +41,7 @@ jobs:
       # -----------------------------
       - name: Serve production build
         run: |
-          bunx serve ./dist --port 4173 --silent &
+          bun preview &
           sleep 5
 
       # -----------------------------
