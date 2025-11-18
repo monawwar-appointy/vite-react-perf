@@ -1,0 +1,17 @@
+{
+  "browsertime": {
+    "iterations": 3,
+    "browser": "chrome",
+    "chrome": {
+      "timeline": true,
+      "collectTracingEvents": true
+    }
+  },
+  "metrics": {
+    "cpu": true,
+    "memory": true,
+    "jsHeapSize": true
+  },
+  "outputFolder": "sitespeed-result",
+  "gzipHAR": true
+}

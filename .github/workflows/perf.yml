@@ -1,0 +1,104 @@
+name: Frontend Performance (Sitespeed)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  sitespeed:
+    name: Build App → Run Server → Sitespeed → PR Comment
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------
+      # 1. Checkout Repo
+      # -----------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # -----------------------------
+      # 2. Install Bun
+      # -----------------------------
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      # -----------------------------
+      # 3. Install Dependencies (Bun)
+      # -----------------------------
+      - name: Install dependencies
+        run: bun install
+
+      # -----------------------------
+      # 4. Build Vite App
+      # -----------------------------
+      - name: Build Vite React app
+        run: bun run build
+
+      # -----------------------------
+      # 5. Start the built app with Bun
+      # Runs in background on port 4173
+      # -----------------------------
+      - name: Serve production build
+        run: |
+          bunx serve ./dist --port 4173 --silent &
+          sleep 5
+
+      # -----------------------------
+      # 6. Create output folder
+      # -----------------------------
+      - name: Ensure output folder exists
+        run: mkdir -p sitespeed-result
+
+      # -----------------------------
+      # 7. Run Sitespeed.io Against Local Server
+      # -----------------------------
+      - name: Run Sitespeed.io
+        run: |
+          docker run --rm \
+            --network=host \
+            -v ${{ github.workspace }}:/sitespeed \
+            sitespeedio/sitespeed.io:latest \
+            /sitespeed/sitespeed/urls.txt \
+            --config /sitespeed/sitespeed/config.json \
+            --outputFolder /sitespeed/sitespeed-result
+
+      # -----------------------------
+      # 8. Upload Report Artifacts
+      # -----------------------------
+      - name: Upload Sitespeed Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: sitespeed-performance-report
+          path: sitespeed-result
+
+      # -----------------------------
+      # 9. Create PR Comment Markdown
+      # -----------------------------
+      - name: Create PR Comment Markdown
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "### 🧪 Frontend Performance Report (Sitespeed.io)" > pr-comment.md
+          echo "" >> pr-comment.md
+          echo "**Your Vite app was built using Bun and tested locally.**" >> pr-comment.md
+          echo "" >> pr-comment.md
+          echo "📊 **Download full Sitespeed performance report:**" >> pr-comment.md
+          echo "" >> pr-comment.md
+          echo "- 👉 *Artifacts → sitespeed-performance-report*" >> pr-comment.md
+          echo "" >> pr-comment.md
+          echo "Includes:" >> pr-comment.md
+          echo "- CPU usage" >> pr-comment.md
+          echo "- Memory usage" >> pr-comment.md
+          echo "- JS Heap" >> pr-comment.md
+          echo "- Web vitals (LCP, FID, CLS)" >> pr-comment.md
+          echo "- Waterfall charts" >> pr-comment.md
+          echo "- Chrome performance timeline" >> pr-comment.md
+
+      # -----------------------------
+      # 10. Post PR Comment
+      # -----------------------------
+      - name: Post Sticky PR Comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: pr-comment.md
